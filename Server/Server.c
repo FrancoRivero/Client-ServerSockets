@@ -31,6 +31,7 @@
 	char message[TAM];
 	char buffer[TAM];
 	char file[TAM];
+	char size_file[TAM];
 	} data;
 
 int main() 
@@ -59,7 +60,7 @@ void login()
 
 	if ( sockfd < 0 ) { 
 		perror( " apertura de socket ");
-		exit( 1 );
+		exit(EXIT_FAILURE);
 	}
 
 	memset( (char *) &serv_addr, 0, sizeof(serv_addr) );
@@ -72,7 +73,7 @@ void login()
 
 	if ( bind(sockfd, ( struct sockaddr *) &serv_addr, sizeof( serv_addr ) ) < 0 ) {
 		perror( "ligadura" );
-		exit( 1 );
+		exit(EXIT_FAILURE);
 	}
 	listen( sockfd, 5 );
 	clilen = sizeof( cli_addr );
@@ -84,13 +85,13 @@ void login()
 		newsockfd = accept( sockfd, (struct sockaddr *) &cli_addr, &clilen );
 		if ( newsockfd < 0 ) {
 			perror( "accept" );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 		}
 
 		pid = fork(); 
 		if ( pid < 0 ) {
 			perror( "fork" );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 		}
 
 		if ( pid == 0 ) 
@@ -129,7 +130,7 @@ void login()
 			n = write( newsockfd, buffer, TAM-1 );
 			if ( n < 0 ) {
 				perror( "ERROR: sending messge" );
-				exit( 1 );
+				exit(EXIT_FAILURE);
 			}
 			/*Se pregunta al cliente y se envia si es correcto o no, la contraseña*/
 
@@ -161,7 +162,7 @@ void login()
 			n = write( newsockfd, buffer, TAM-1 );
 			if ( n < 0 ) {
 				perror( "ERROR: sending messge" );
-				exit( 1 );
+				exit(EXIT_FAILURE);
 			}
 			printf("connection accepted %s\n", data.port);
 			
@@ -195,7 +196,7 @@ void login()
 							if ( n < 0 ) 
 							{
 								perror( "writing to socket" );
-								exit( 1 );
+								exit(EXIT_FAILURE);
 							}
 						}
 
@@ -222,14 +223,20 @@ void login()
 
 						strcpy(data.file,strtok(NULL,"/"));
 					    strcpy(data.port_udp,strtok(NULL,"\0"));
-					    //sprintf(data.message,"%d",findSize(data.file));
-					    strcpy(data.message, "Recibiendo archivo.\n");
+						sprintf(data.size_file,"%ld",findSize(data.file));
+						strcpy(data.message, "Recibiendo archivo.\n");
 					    data.flag = 1;
 					    n = write( newsockfd, data.message, TAM-1 );
 						if ( n < 0 ) 
 						{
 							perror( "writing to socket" );
-							exit( 1 );
+							exit(EXIT_FAILURE);
+						}
+						n = write( newsockfd, data.size_file, TAM );
+						if ( n < 0 ) 
+						{
+							perror( "writing to socket" );
+							exit(EXIT_FAILURE);
 						}
 						break;
 					}
@@ -263,7 +270,6 @@ void login()
 		   			 if (sendto(socket_udp, buf, strlen(buf) , 0 , (struct sockaddr *) &si_other, slen)==-1)
 		        	{
 		            	perror("sendto()");
-		            	printf("entre en 1\n");
 		            	exit(1);
 		       		}
 		        	
@@ -358,7 +364,7 @@ void start()
 
 	else{
 		perror( "INVALID FORMAT ERROR: expect connect " );
-		exit( 1 );    
+		exit(EXIT_FAILURE);    
 	}
 }
 

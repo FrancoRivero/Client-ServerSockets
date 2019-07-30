@@ -25,6 +25,7 @@ struct udp{
 	int flag;
 	char port[10];
 	char file[TAM];
+	char file_size[TAM];
 }udp;
 int main() 
 {
@@ -48,7 +49,7 @@ void login(){
 	sockfd = socket( AF_INET, SOCK_STREAM, 0 );
 	if ( sockfd < 0 ) {
 		perror( "ERROR apertura de socket" );
-		exit( 1 );
+		exit(EXIT_FAILURE);
 	}
 
 	server = gethostbyname(data.number_ip);
@@ -64,7 +65,7 @@ void login(){
 	serv_addr.sin_port = htons( puerto );
 	if ( connect( sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr ) ) < 0 ) {
 		perror( "conexion" );
-		exit( 1 );
+		exit(EXIT_FAILURE);
 	}
 		printf("Enter the username\n");
 		printf(">");
@@ -74,14 +75,14 @@ void login(){
         m = write(sockfd, user, strlen(user));
         if (m < 0) {
             perror("Error sending message");
-            exit(1);
+            exit(EXIT_FAILURE);
         } 
         user[strlen(user)-1] = '\0';
         memset( user, '\0', TAM );
         m = read(sockfd, user, sizeof(user));
        if (m < 0) {
             perror("Error receiving message");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         else {
         	if(!strcmp("CORRECT",user)){
@@ -100,14 +101,14 @@ void login(){
         n = write(sockfd, buffer, strlen(buffer));
         if (n < 0) {
             perror("Error sending message");
-            exit(1);
+            exit(EXIT_FAILURE);
         } 
         buffer[strlen(buffer)-1] = '\0';
         memset( buffer, '\0', TAM );
         n = read(sockfd, buffer, sizeof(buffer));
        	if (n < 0) {
             perror("Error receiving message");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         else {
         	if(!strcmp("CORRECT",buffer)){
@@ -124,12 +125,12 @@ void login(){
      	if ( n < 0 ) 
      	{
 			perror( "writing to socket" );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 		}
    		n = read( sockfd, currentdir, TAM );
 		if ( n < 0 ) {
 			perror( "reading to socket" );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 		}
 		if(strlen(currentdir) == 0)
 			printf("%s@%s:~$ ", data.username, data.number_ip);
@@ -159,7 +160,7 @@ void login(){
 	    	if ( n < 0 ) 
 	     	{
 				perror( "writing to socket" );
-				exit( 1 );
+				exit(EXIT_FAILURE);
 			}
 		}
    		else{
@@ -169,16 +170,22 @@ void login(){
      	if ( n < 0 ) 
      	{
 			perror( "writing to socket" );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 		}
 
 		n = read( sockfd, received, TAM );
 		if ( n < 0 ) {
 			perror( "reading to socket" );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 		}
 		printf("\n\n");
 		printf("%s\n",received );
+		n = read( sockfd, udp.file_size, TAM );
+		if ( n < 0 ) {
+			perror( "reading to socket" );
+			exit(EXIT_FAILURE);
+		}
+		udp.file_size[strlen(udp.file_size)] = '\0';
 		if (udp.flag)
 		{	
 			struct sockaddr_in si_me;
@@ -186,8 +193,8 @@ void login(){
 		    //se crea el socket UDP
 		    if ((socket_file_udp=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		    {
-		        perror("socket");
-		        exit(1);
+		        perror("socket creation failed");
+		        exit(EXIT_FAILURE);
 		    }
 		    memset((char *) &si_me, 0, sizeof(si_me));
 		     
@@ -199,13 +206,13 @@ void login(){
 		    //se crea el enlace con el puerto
 		    if( bind(socket_file_udp , (struct sockaddr*)&si_me, sizeof(si_me) ) == -1)
 		    {
-		        perror("bind");
-		        exit(1);
+		        perror("bind failed");
+		        exit(EXIT_FAILURE);
 		    }
 
 		    socklen_t slen = sizeof(si_me);
 		    char buffer_udp[TAM];
-			int  recv_len,leidos;
+			int  recv_len;//,leidos;
 			FILE *f;
 
 			while(udp.flag)
@@ -216,23 +223,25 @@ void login(){
 				if (f==NULL)
 			    {
 			       perror("No se puede abrir fichero.dat");
-			       exit(1);
+			       exit(EXIT_FAILURE);
 			    }
 				memset(buffer_udp, 0, TAM);
-				if ((recv_len = recvfrom(socket_file_udp, buf2, 30, 0, (struct sockaddr *) &si_me, &slen)) == -1)
+				if ((recv_len = recvfrom(socket_file_udp, (char *)buf2, TAM, MSG_WAITALL, (struct sockaddr *) &si_me, &slen)) == -1)
 	            {
 	            	perror("recvfrom()");
-	            	exit(1);
+	            	exit(EXIT_FAILURE);
 	            }
-
-				leidos = sizeof(buf2) / sizeof(char);
+				
+	            //float npack = udp.file/1024;
+	            //printf("%s\n",udp.file );
+				/*leidos = sizeof(buf2) / sizeof(char);
 				
 				if ((recv_len = recvfrom(socket_file_udp, buffer2, 1024000, 0, (struct sockaddr *) &si_me, &slen)) == -1)
 	            {
 	            	perror("recvfrom()");
 	            	exit(1);
-	            }
-	            fwrite (buffer2, 1, leidos, f);
+	            }*/
+	            fwrite (buffer2, 1, TAM, f);
 	            udp.flag = 0;
 				 fclose(f);
 			}
@@ -264,26 +273,26 @@ if(strcmp("localhost",aux)){
 	if(strlen(aux)>3 || atoi(aux)>255 || atoi(aux)<0){
 		perror("INVALID FORMAT ERROR: expect xxx.xxx.xxx.xxx or localhost, or doesn't belong to an ip address" );
 		printf("%s\n",aux );
-		exit( 1 );
+		exit(EXIT_FAILURE);
 	}
 	strcpy(aux,strtok(NULL,"."));
 	if(strlen(aux)>3 || atoi(aux)>255 || atoi(aux)<0){
 		perror("INVALID FORMAT ERROR: expect xxx.xxx.xxx.xxx or localhost, or doesn't belong to an ip address" );
 			printf("%s\n",aux );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 	}
 	strcpy(aux,strtok(NULL,"."));
 	if(strlen(aux)>3 || atoi(aux)>255 || atoi(aux)<0){
 		perror("INVALID FORMAT ERROR: expect xxx.xxx.xxx.xxx or localhost, or doesn't belong to an ip address" );
 			printf("%s\n",aux );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 	}
 	
 	strcpy(aux,strtok(NULL,"\0"));
 	if(strlen(aux)>3 || atoi(aux)>255 || atoi(aux)<0){
 		perror("INVALID FORMAT ERROR: expect xxx.xxx.xxx.xxx or localhost, or doesn't belong to an ip address" );
 			printf("%s\n",aux );
-			exit( 1 );
+			exit(EXIT_FAILURE);
 	}
 }
 else if (!strcmp("localhost",aux)){
@@ -292,7 +301,7 @@ else if (!strcmp("localhost",aux)){
 else
 {
 	perror("INVALID FORMAT ERROR: expect xxx.xxx.xxx.xxx or localhost" );
-	exit( 1 );
+	exit(EXIT_FAILURE);
 }
 
 }
@@ -319,7 +328,7 @@ void start(){
 	        strcpy( aux2,connection );
 	        if(strchr(aux2,'@')== NULL || strchr(aux2,':') == NULL){
 	        	perror( "INVALID FORMAT ERROR: expect format *username@ip_number:port* " );
-		        exit( 1 );
+		        exit(EXIT_FAILURE);
 	        }
 	        else{
 	        	set_data(aux);
@@ -328,7 +337,7 @@ void start(){
 		}
 		else{
 				perror( "INVALID FORMAT ERROR: expect connect " );
-		        exit( 1 );
+		        exit(EXIT_FAILURE);
 	        
 		}
 }
