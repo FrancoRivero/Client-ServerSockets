@@ -190,7 +190,6 @@ void login()
 				if(data.flag == 1){
 					char linea[TAM];
 					char b_aux[TAM];
-					int BUFFER_SIZE = 1024;
 					FILE * f; /*File enviado en UDP*/
 					
 		   			if ((f = fopen(data.file,"rb")) == NULL){
@@ -228,7 +227,7 @@ void login()
 					/* Se envia por lineas del archivo, los datos al cliente  */
 					while(!feof(fp)){
 						//Se lee un paquete 
-						if((fread(b_aux,1,BUFFER_SIZE,fp)) != BUFFER_SIZE){
+						if((fread(b_aux,1,TAM,fp)) != TAM){
 							if(ferror(fp) != 0){
 								fprintf(stderr,"Error reading file.\n");
 								exit(EXIT_FAILURE);
@@ -236,10 +235,10 @@ void login()
 							else if(feof(fp) != 0);
 						}
 						//se recibe mensaje de sincronización
-						n = recvfrom(socket_udp,linea,BUFFER_SIZE-1,0,(struct sockaddr *)&si_other,&slen);
+						n = recvfrom(socket_udp,linea,TAM-1,0,(struct sockaddr *)&si_other,&slen);
 						error_socket(n,"reading to socket" );
 
-						n = sendto(socket_udp,(void *)b_aux,BUFFER_SIZE,0,(struct sockaddr *) &si_other,slen);
+						n = sendto(socket_udp,(void *)b_aux,TAM,0,(struct sockaddr *) &si_other,slen);
 						error_socket(n,"writing to socket" );
 						contador++;
 					}

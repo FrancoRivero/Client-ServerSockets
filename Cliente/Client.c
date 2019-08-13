@@ -184,6 +184,7 @@ void login(){
 		if (udp.flag){	
 			FILE *f;
 			struct sockaddr_in si_me;
+			int rec = 0;
 			f = fopen(udp.file,"wb");
 				
 			if (f==NULL){
@@ -251,23 +252,15 @@ void login(){
 					perror( "reading to socket UDP" );
 					exit(EXIT_FAILURE);
 				}
-				/** Error en el servidor por perror  */
-				/*if (!strcmp (buffer_udp,"error")) { 
-					printf("Hubo un error en el servidor, intentelo nuevamente\n");
-				}*/
-
 				if (!strcmp ("finish", buffer_udp)) {
 					udp.flag = 0;
 				}
 				else{
-					fwrite(buffer_udp, 1, TAM, f);
-					/*if((rec = fwrite(&buffer_udp, 1, TAM, f)) ==){
-			
+					if((rec = fwrite(buffer_udp, 1, TAM, f)) !=TAM){
 						printf("Error en la escritura del archivo \n");
 						exit(EXIT_FAILURE);
-					}*/
+					}
 				}
-				//fclose(f);
 			}
 			fclose(f);
 			char cwd[TAM];
