@@ -94,7 +94,6 @@ int built_in_command(struct parser_element *element){
 	}
 	else if(strstr(element->command, "cd") != NULL)
 	{
-		printf("entre en el if de cd null\n");
 		if(element->argv[1] == NULL){
 			chdir(getenv("HOME"));
 		}

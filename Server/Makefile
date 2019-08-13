@@ -1,8 +1,8 @@
-Server:	Server.o parser.o command.o
-	gcc -o  Server Server.o parser.o command.o
+Server:	server.o parser.o command.o
+	gcc -o  Server server.o parser.o command.o
 
-Server.o: Server.c parser.h command.h 
-	gcc $(CFLAGS) -Werror -Wall -pedantic -c -w Server.c
+server.o: server.c parser.h command.h 
+	gcc $(CFLAGS) -Werror -Wall -pedantic -c -w server.c
 
 parser.o: parser.h parser.c
 	gcc $(CFLAGS) -Werror -Wall -pedantic -c -w parser.c

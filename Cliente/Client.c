@@ -184,7 +184,6 @@ void login(){
 		if (udp.flag){	
 			FILE *f;
 			struct sockaddr_in si_me;
-			//int rec = 0;
 			f = fopen(udp.file,"wb");
 				
 			if (f==NULL){
@@ -203,17 +202,15 @@ void login(){
 				exit(EXIT_FAILURE);
 			}
 			memset(buffAuxiliar,'\0',TAM);
-			printf("El archivo existe en el servidor \n");
 		    //se crea el socket UDP
-		    if ((socket_file_udp=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-		    {
+		    if ((socket_file_udp=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1){
 		        perror("socket creation failed \n");
 		        exit(EXIT_FAILURE);
 		    }
 		    memset((char *) &si_me, 0, sizeof(si_me));
 		     
 		    si_me.sin_family = AF_INET;
-		    si_me.sin_port = htons(6021);
+		    si_me.sin_port = htons(udp.port_udp);
 		    si_me.sin_addr = *((struct in_addr *) server->h_addr_list[0]);
 		    memset(&(si_me.sin_zero), '\0', 8);
 		     
@@ -239,12 +236,8 @@ void login(){
 				
 			/** Mientras no se reciba la cadena "finish" por parte del servidor, se guardaran
 				en el archivo todas las lineas provenientes del mismo  */
-			int contador = 0;
-			while(udp.flag)
-			{   
+			while(udp.flag){   
 				memset(buffer_udp, 0, TAM);
-				printf("%s",buffer_udp);
-				
 				/** Esto se envía solo para mantener sincronizados el servidor 
 				con el cliente  */
 				n = sendto(socket_file_udp,(void *)"cla",TAM,0,(struct sockaddr *)&si_me,slen);
@@ -258,20 +251,18 @@ void login(){
 					perror( "reading to socket UDP" );
 					exit(EXIT_FAILURE);
 				}
-				contador++;
 				/** Error en el servidor por perror  */
 				/*if (!strcmp (buffer_udp,"error")) { 
 					printf("Hubo un error en el servidor, intentelo nuevamente\n");
 				}*/
 
-				
 				if (!strcmp ("finish", buffer_udp)) {
 					udp.flag = 0;
-					printf("llegaron: %u paquetes\n",contador-1);
 				}
 				else{
 					fwrite(buffer_udp, 1, TAM, f);
-					/*if((rec = fwrite(buffer_udp, 1, TAM, f))== TAM){
+					/*if((rec = fwrite(&buffer_udp, 1, TAM, f)) ==){
+			
 						printf("Error en la escritura del archivo \n");
 						exit(EXIT_FAILURE);
 					}*/

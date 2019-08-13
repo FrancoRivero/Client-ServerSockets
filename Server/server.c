@@ -48,7 +48,6 @@ void login()
 	char buffer[TAM],buf[TAM],currentdir[TAM],msj[TAM],comando[TAM];
 	socklen_t clilen;
 	socklen_t slen;
-	int leidos;
 	struct sockaddr_in si_other;
 	char* pass = NULL;
 	struct sockaddr_in serv_addr;
@@ -168,13 +167,11 @@ void login()
 					n = read( newsockfd, buf, TAM-1 );
 					error_socket(n,"reading to socket" );
 					buf[strlen(buf)] = '\0';
-					if(!strcmp(buf,"exit"))
-					{
+					if(!strcmp(buf,"exit")){
 						disconnect();
 						exit(0);
 					}
-					else if(!strcmp( "download",strtok(buf,"/")))
-					{
+					else if(!strcmp( "download",strtok(buf,"/"))){
 						strcpy(data.file,strtok(NULL,"/"));
 					    strcpy(data.port_udp,strtok(NULL,"\0"));
 						strcpy(data.message, "Recibiendo archivo.\n");
@@ -183,8 +180,7 @@ void login()
 						error_socket(n,"writing to socket" );
 						break;
 					}
-					else
-					{
+					else{
 						dup2( newsockfd, STDOUT_FILENO );  // duplicate socket on stdout 
 						set_pipes(buf);
 						fflush(stdout);
@@ -199,12 +195,14 @@ void login()
 					
 		   			if ((f = fopen(data.file,"rb")) == NULL){
 						n = write( newsockfd, "ErrorOpenFile", TAM );
+						close(f);
 						error_socket(n,"writing to socket" );
 						perror("No se puede abrir fichero.dat");
 						exit(EXIT_FAILURE);
 					}
 					n = write( newsockfd,"OK", TAM );
 					error_socket(n,"writing to socket" );
+					close(f);
 					//Enviar informacion por UDP
 		    		data.p=atoi(data.port_udp);
 					socket_udp = socket (AF_INET, SOCK_DGRAM, 0);
@@ -213,7 +211,7 @@ void login()
 					memset (&si_other, 0, sizeof (si_other));
 		    		si_other.sin_family = AF_INET;
 					si_other.sin_addr.s_addr = INADDR_ANY;
-		    		si_other.sin_port = htons(6021);
+		    		si_other.sin_port = htons(data.p);
 		    		memset(&(si_other.sin_zero), '\0', 8);
 
 		    		n = bind(socket_udp,(struct sockaddr *)&si_other,sizeof(si_other));
@@ -226,32 +224,33 @@ void login()
 					n = 0;
 					int contador = 0;
 		    		slen=sizeof(struct sockaddr);
+					FILE * fp=fopen(data.file,"rb");
 					/* Se envia por lineas del archivo, los datos al cliente  */
-					while(feof(f) == 0){
+					while(!feof(fp)){
 						//Se lee un paquete 
-						if((leidos = fread(b_aux,1,TAM,f)) != TAM){
-							if(ferror(f) != 0){
+						if((fread(b_aux,1,BUFFER_SIZE,fp)) != BUFFER_SIZE){
+							if(ferror(fp) != 0){
 								fprintf(stderr,"Error reading file.\n");
 								exit(EXIT_FAILURE);
 							}
-							else if(feof(f) != 0);
+							else if(feof(fp) != 0);
 						}
 						//se recibe mensaje de sincronización
 						n = recvfrom(socket_udp,linea,BUFFER_SIZE-1,0,(struct sockaddr *)&si_other,&slen);
 						error_socket(n,"reading to socket" );
+
 						n = sendto(socket_udp,(void *)b_aux,BUFFER_SIZE,0,(struct sockaddr *) &si_other,slen);
 						error_socket(n,"writing to socket" );
 						contador++;
 					}
-
-					printf("Se enviaron todos los paquetes %u\n",contador);
 	      			/** Luego se envia el mensaje de finalizacion de transferencia  */
 					delay(10);
 		   			printf("Se envio el archivo correctamente\n");
 					n = sendto(socket_udp,(void *)"finish",18,0,(struct sockaddr *) &si_other,slen);
 		 			error_socket(n,"writing to socket" );
-					fclose(f);
+					fclose(fp);
 		   			close(socket_udp);
+					exit(EXIT_SUCCESS);
 				}
 			}
 		}
