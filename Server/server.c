@@ -5,6 +5,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <time.h>
 #include <ctype.h>
 #include <arpa/inet.h>
 #include <sys/stat.h>
@@ -17,7 +18,6 @@
 	void start();
 	void disconnect();
 	void set_pipes(char*);
-	long int findSize(const char*);
 /*Definicion de variables para las conexiones tanto UDP, como TCP*/
 	struct sockaddr_in cli_addr;
 /*Utilizo estructura data para almacenar los datos relevantes del programa*/
@@ -31,7 +31,6 @@
 	char message[TAM];
 	char buffer[TAM];
 	char file[TAM];
-	char size_file[TAM];
 	} data;
 
 int main() 
@@ -45,16 +44,14 @@ int main()
 void login()
 {
 	/*Definicion de variables para el servidor TCP*/
-	int sockfd, newsockfd,  puerto, pid, n,i;
-	char buffer[TAM],buf[TAM],currentdir[TAM],msj[TAM],comando[TAM],socket_udp,buf2[30];
+	int sockfd, newsockfd,  puerto, pid, n,i,socket_udp;
+	char buffer[TAM],buf[TAM],currentdir[TAM],msj[TAM],comando[TAM];
 	socklen_t clilen;
 	socklen_t slen;
-	char buffer2[1024000];
-    int leidos;
+	int leidos;
 	struct sockaddr_in si_other;
 	char* pass = NULL;
 	struct sockaddr_in serv_addr;
-	FILE *f; /*File enviado en UDP*/
 	/*Se inicicializa el servidor TCP*/
 	sockfd = socket( AF_INET, SOCK_STREAM, 0);
 
@@ -87,7 +84,6 @@ void login()
 			perror( "accept" );
 			exit(EXIT_FAILURE);
 		}
-
 		pid = fork(); 
 		if ( pid < 0 ) {
 			perror( "fork" );
@@ -104,18 +100,10 @@ void login()
 			memset( buffer, 0, TAM );
 
 			n = read( newsockfd, buffer, TAM-1 );
-			printf("%s\n",buffer );
-			if ( n < 0 ) {
-				perror( "lectura de socket" );
-				exit(1);
-			}
-			else{
-				buffer[strlen(buffer) - 1] = '\0';
-				printf("%s\n",buffer );
-				i = strlen(buffer);
-		        printf("User received %s of length %d\n", buffer, i);
-			}
-			printf("Received\n");
+			error_socket(n,"reading to socket" );
+			buffer[strlen(buffer) - 1] = '\0';
+			i = strlen(buffer);
+			printf("User received %s of length %d\n", buffer, i);
 			if (!strcmp("franco", buffer) ) {
 		        strcpy(data.username,buffer);
 		        printf("Username entered is correct\n");
@@ -124,31 +112,19 @@ void login()
 		    else {
 		        printf("Incorrect Username %s\n", buffer);
 		        snprintf(buffer, sizeof(buffer), "I");
-		        exit(1);
+		        exit(EXIT_FAILURE);
 		    }
 		    printf("SENDING : %s\n",buffer);
 			n = write( newsockfd, buffer, TAM-1 );
-			if ( n < 0 ) {
-				perror( "ERROR: sending messge" );
-				exit(EXIT_FAILURE);
-			}
+			error_socket(n,"writing to socket");
 			/*Se pregunta al cliente y se envia si es correcto o no, la contraseña*/
-
 			printf("Expecting the password\n");
 			memset( buffer, 0, TAM );
 			n = read( newsockfd, buffer, TAM-1 );
-			printf("%s\n",buffer );
-			if ( n < 0 ) {
-				perror( "lectura de socket" );
-				exit(1);
-			}
-			else{
-				buffer[strlen(buffer) - 1] = '\0';
-				printf("%s\n",buffer );
-				i = strlen(buffer);
-		        printf("Password received %s of length %d\n", buffer, i);
-			}
-			printf("Received\n");
+			error_socket(n,"reading to socket");
+			buffer[strlen(buffer) - 1] = '\0';
+			i = strlen(buffer);
+			printf("Password received %s of length %d\n", buffer, i);
 			if (!strcmp("rivero", buffer) ) {
 		        printf("Password entered is correct\n");
 		        snprintf(buffer, sizeof(buffer), "CORRECT");
@@ -156,14 +132,11 @@ void login()
 		    else {
 		        printf("Incorrect Password %s\n", pass);
 		        snprintf(buffer, sizeof(buffer), "I");
-		        exit(1);
+		        exit(EXIT_FAILURE);
 		    }
 		    printf("SENDING : %s\n",buffer);
 			n = write( newsockfd, buffer, TAM-1 );
-			if ( n < 0 ) {
-				perror( "ERROR: sending messge" );
-				exit(EXIT_FAILURE);
-			}
+			error_socket(n,"ERROR: sending messge" );
 			printf("connection accepted %s\n", data.port);
 
 			/*Se inicia la conexion TCP*/
@@ -181,38 +154,20 @@ void login()
 				{
 					memset( buf, 0, TAM );
 					n = read( newsockfd, buf, TAM-1 );
-					if ( n < 0 ) 
-					{
-						perror( "reading to socket" );
-						exit(1);
-					}
-					else{
-						buf[strlen(buf)] = '\0';
-						if(buf[0] == 'c'){
-							if (getcwd(currentdir, sizeof(currentdir)) == NULL){//El directorio de trabajo
-								       printf("getcwd() error");
-							}
-							n = write( newsockfd, currentdir, TAM-1 );
-							if ( n < 0 ) 
-							{
-								perror( "writing to socket" );
-								exit(EXIT_FAILURE);
-							}
+					error_socket(n,"reading to socket");
+					buf[strlen(buf)] = '\0';
+					if(buf[0] == 'c'){
+						if (getcwd(currentdir, sizeof(currentdir)) == NULL){//El directorio de trabajo
+									printf("getcwd() error");
 						}
-
+						n = write( newsockfd, currentdir, TAM-1 );
+						error_socket(n,"writing to socket" );
 					}
 					memset( buf, 0, TAM );
 					printf("%s\n",buf );
 					n = read( newsockfd, buf, TAM-1 );
-					if ( n < 0 ) 
-					{
-						perror( "reading to socket" );
-						exit(1);
-					}
-
-
+					error_socket(n,"reading to socket" );
 					buf[strlen(buf)] = '\0';
-
 					if(!strcmp(buf,"exit"))
 					{
 						disconnect();
@@ -220,100 +175,84 @@ void login()
 					}
 					else if(!strcmp( "download",strtok(buf,"/")))
 					{
-
 						strcpy(data.file,strtok(NULL,"/"));
 					    strcpy(data.port_udp,strtok(NULL,"\0"));
-						sprintf(data.size_file,"%ld",findSize(data.file));
 						strcpy(data.message, "Recibiendo archivo.\n");
 					    data.flag = 1;
-					    n = write( newsockfd, data.message, TAM-1 );
-						if ( n < 0 ) 
-						{
-							perror( "writing to socket" );
-							exit(EXIT_FAILURE);
-						}
-						n = write( newsockfd, data.size_file, TAM );
-						if ( n < 0 ) 
-						{
-							perror( "writing to socket" );
-							exit(EXIT_FAILURE);
-						}
+					    n = write( newsockfd, data.message, TAM );
+						error_socket(n,"writing to socket" );
 						break;
 					}
 					else
 					{
-						dup2( newsockfd, STDOUT_FILENO );  /* duplicate socket on stdout */
+						dup2( newsockfd, STDOUT_FILENO );  // duplicate socket on stdout 
 						set_pipes(buf);
 						fflush(stdout);
 					}
-
-
 				}while (!feof(stdin) && strstr(buf, "exit") == NULL); //Termina el programa en el comando exit o al hacer Ctrl+D
 
-				if(data.flag == 1)
-				{
-					data.flag = 0;
-					/*Enviar informacion por UDP*/
-		    		data.p=atoi(data.port_udp);
-		    		slen=sizeof(si_other);
-		    		if ( (socket_udp=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
-		    		{
-		        		perror("socket");
-		        		exit(1);
-		    		}
-		    		si_other.sin_family = AF_INET;
-		    		si_other.sin_port = htons(data.p);
-		    		memset(&(si_other.sin_zero), '\0', 8);
-		    		si_other.sin_addr = cli_addr.sin_addr;
-		    		strcpy(buf, "start");
-		    		/*Enviar la señal que se va a comenzar la transmision de informacion UDP*/
-		   			 if (sendto(socket_udp, buf, strlen(buf) , 0 , (struct sockaddr *) &si_other, slen)==-1)
-		        	{
-		            	perror("sendto()");
-		            	exit(1);
-		       		}
-
-		   			memset(buf, 0, sizeof(buf));
-
-		   			f = fopen(data.file,"rb");
-		   			if (f == NULL)
-					{
+				if(data.flag == 1){
+					char linea[TAM];
+					char b_aux[TAM];
+					int BUFFER_SIZE = 1024;
+					FILE * f; /*File enviado en UDP*/
+					
+		   			if ((f = fopen(data.file,"rb")) == NULL){
+						n = write( newsockfd, "ErrorOpenFile", TAM );
+						error_socket(n,"writing to socket" );
 						perror("No se puede abrir fichero.dat");
-						return -1;
+						exit(EXIT_FAILURE);
+					}
+					n = write( newsockfd,"OK", TAM );
+					error_socket(n,"writing to socket" );
+					//Enviar informacion por UDP
+		    		data.p=atoi(data.port_udp);
+					socket_udp = socket (AF_INET, SOCK_DGRAM, 0);
+		    		error_socket(socket_udp,"socket creation UDP");
+
+					memset (&si_other, 0, sizeof (si_other));
+		    		si_other.sin_family = AF_INET;
+					si_other.sin_addr.s_addr = INADDR_ANY;
+		    		si_other.sin_port = htons(6021);
+		    		memset(&(si_other.sin_zero), '\0', 8);
+
+		    		n = bind(socket_udp,(struct sockaddr *)&si_other,sizeof(si_other));
+					error_socket(socket_udp,"Binding socket UDP");
+					n = read( sockfd, buf, sizeof(buf));
+					error_socket(n,"reading to socket" );
+					//Enviar la señal que se va a comenzar la transmision de informacion UDP
+					n = write( newsockfd, "start", TAM );
+					error_socket(n,"writing to socket" );
+					n = 0;
+					int contador = 0;
+		    		slen=sizeof(struct sockaddr);
+					/* Se envia por lineas del archivo, los datos al cliente  */
+					while(feof(f) == 0){
+						//Se lee un paquete 
+						if((leidos = fread(b_aux,1,TAM,f)) != TAM){
+							if(ferror(f) != 0){
+								fprintf(stderr,"Error reading file.\n");
+								exit(EXIT_FAILURE);
+							}
+							else if(feof(f) != 0);
+						}
+						//se recibe mensaje de sincronización
+						n = recvfrom(socket_udp,linea,BUFFER_SIZE-1,0,(struct sockaddr *)&si_other,&slen);
+						error_socket(n,"reading to socket" );
+						n = sendto(socket_udp,(void *)b_aux,BUFFER_SIZE,0,(struct sockaddr *) &si_other,slen);
+						error_socket(n,"writing to socket" );
+						contador++;
 					}
 
-					leidos = fread( buffer2,1,1024000,f);
-					sprintf(buf2,"%d",leidos);
-		   			/*Enviar la linea de informacion*/
-		   			if (sendto(socket_udp, buffer2, strlen(buffer2)+1 , 0 , (struct sockaddr *) &si_other, slen)==-1)
-	        		{
-	            		perror("sendto()");
-	            		exit(1);
-	       			}
-	       			memset(buffer2, 0, sizeof(buffer2));
-
-		   			/*Enviar la linea de informacion*/
-		   			if (sendto(socket_udp, buf2, strlen(buf2)+1 , 0 , (struct sockaddr *) &si_other, slen)==-1)
-	        		{
-	            		perror("sendto()");
-	            		exit(1);
-	       			}
-		   			memset(buf2, 0, sizeof(buf2));
-
-		   			/*Enviar la señal que se finalizo la transmision de informacion UDP*/
-		   			strcpy(buf, "finish");
-		   			if (sendto(socket_udp, buf, strlen(buf), 0 , (struct sockaddr *) &si_other, slen)==-1)
-		        	{
-		            	perror("sendto()");
-		            	exit(1);
-		       		}
-		   			memset(buf, 0, sizeof(buf));
+					printf("Se enviaron todos los paquetes %u\n",contador);
+	      			/** Luego se envia el mensaje de finalizacion de transferencia  */
+					delay(10);
 		   			printf("Se envio el archivo correctamente\n");
-
-		 			fclose(f);
-		   			close(data.file);
+					n = sendto(socket_udp,(void *)"finish",18,0,(struct sockaddr *) &si_other,slen);
+		 			error_socket(n,"writing to socket" );
+					fclose(f);
+		   			close(socket_udp);
 				}
-
 			}
 		}
 		else 
@@ -324,23 +263,8 @@ void login()
 	}
 }
 
-/*function to get size of the file.*/
-long int findSize(const char *file_name)
-{
-    struct stat st; /*declare stat variable*/
-
-    /*get the size using stat()*/
-
-    if(stat(file_name,&st)==0)
-        return (st.st_size);
-    else
-        return -1;
-}
-
 /*funciona como inicio de la conexion tcp, consiguiendo los parametros necesarios para que se realice la conexion*/
-void start()
-{
-
+void start(){
 	/*se declaran las variables a utilizar para la conexion al servidor*/
 
 	char comando_inicial[TAM];    
@@ -370,12 +294,23 @@ void start()
 
 /*Desconexion del servidor*/
 
-void disconnect()
-{
+void disconnect(){
 	printf("client %s disconnected \n",data.username);
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
+/**
+  Detecta si hubo algun tipo de error al inicializar parametros
 
+  @param n Valor de control
+  @param leyenda Frase indicando el tipo de error
+  @param newsockfd Descriptor del socket
+*/
+void error_socket(int n,char message[]){
+	if (n < 0) {
+		perror (message);
+		exit (EXIT_FAILURE);
+	}
+}
 /*
  * Separa los comandos segun pipes, crea los pipes y ejecuta los comandos
  */
@@ -390,7 +325,7 @@ void set_pipes(char *input_string)
 	for(i=0; i < num_commands-1; i++){
 		if(pipe(pipes[i])<0) {
 			perror("Error creating pipe!");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -423,4 +358,19 @@ void set_pipes(char *input_string)
 		}
 		counter++;
 	}
+}
+
+/**
+  @brief Permite obtener un delay
+
+  @param milliseconds Valor del delay en milisegundos
+*/
+void delay (int milliseconds){
+    long pause;
+    clock_t now,then;
+
+    pause = milliseconds*(CLOCKS_PER_SEC/1000);
+    now = then = clock ();
+    while ((now-then) < pause)
+        now = clock ();
 }

@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <arpa/inet.h>
+#include <math.h>
 #define TAM 1024
 void set_data(char*);
 void check_ip(char*);
@@ -25,7 +26,6 @@ struct udp{
 	int flag;
 	char port[10];
 	char file[TAM];
-	char file_size[TAM];
 }udp;
 int main() 
 {
@@ -38,7 +38,7 @@ void login(){
 	int sockfd, puerto, n,m;
 	struct sockaddr_in serv_addr; //variables de conexion tcp-ip
 	struct hostent *server;
-	char buffer[TAM],user[TAM],command[TAM],received[TAM],currentdir[TAM],buff[TAM],buf2[30],buffer2[1024000]; //variables de uso auxiliar
+	char buffer[TAM],user[TAM],command[TAM],received[TAM],currentdir[TAM],buff[TAM];//,buf2[30],buffer2[1024000]; //variables de uso auxiliar
 	    
 	
 
@@ -61,7 +61,7 @@ void login(){
 	}
 	memset( (char *) &serv_addr, '0', sizeof(serv_addr) );
 	serv_addr.sin_family = AF_INET;
-	bcopy( (char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length );
+	bcopy( (char *)server->h_addr_list[0], (char *)&serv_addr.sin_addr.s_addr, server->h_length );
 	serv_addr.sin_port = htons( puerto );
 	if ( connect( sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr ) ) < 0 ) {
 		perror( "conexion" );
@@ -90,7 +90,7 @@ void login(){
         	}
         	else {
         		printf("User incorrect \n");
-        		exit(0);
+        		exit(EXIT_FAILURE);
         	}
         }
         printf("Enter the password :\n");
@@ -141,7 +141,7 @@ void login(){
    		command[strlen(command)-1] = '\0';
    		if(!strcmp(command,"exit")){
    			n = write(sockfd, command, strlen(command));
-   			exit(0);
+   			exit(EXIT_SUCCESS);
    		}
    		else if(!strcmp(command,"download" )){
 			printf("Agregar el archivo a descargar:\n >");
@@ -180,76 +180,112 @@ void login(){
 		}
 		printf("\n\n");
 		printf("%s\n",received );
-		n = read( sockfd, udp.file_size, TAM );
-		if ( n < 0 ) {
-			perror( "reading to socket" );
-			exit(EXIT_FAILURE);
-		}
-		udp.file_size[strlen(udp.file_size)] = '\0';
-		if (udp.flag)
-		{	
+		
+		if (udp.flag){	
+			FILE *f;
 			struct sockaddr_in si_me;
-		     
+			//int rec = 0;
+			f = fopen(udp.file,"wb");
+				
+			if (f==NULL){
+				perror("No se puede abrir fichero.dat \n");
+				exit(EXIT_FAILURE);
+			}
+			char buffAuxiliar[TAM];
+        	n = read( sockfd, buffAuxiliar, TAM*sizeof(char));
+			if ( n < 0 ) {
+				perror( "reading to socket" );
+				exit(EXIT_FAILURE);
+			}
+			if(strcmp("OK",buffAuxiliar)){
+				printf("El archivo no existe en el servidor \n");
+				fclose(f);
+				exit(EXIT_FAILURE);
+			}
+			memset(buffAuxiliar,'\0',TAM);
+			printf("El archivo existe en el servidor \n");
 		    //se crea el socket UDP
 		    if ((socket_file_udp=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		    {
-		        perror("socket creation failed");
+		        perror("socket creation failed \n");
 		        exit(EXIT_FAILURE);
 		    }
 		    memset((char *) &si_me, 0, sizeof(si_me));
 		     
 		    si_me.sin_family = AF_INET;
-		    si_me.sin_port = htons(udp.port_udp);
-		    si_me.sin_addr.s_addr = htonl(INADDR_ANY);
+		    si_me.sin_port = htons(6021);
+		    si_me.sin_addr = *((struct in_addr *) server->h_addr_list[0]);
 		    memset(&(si_me.sin_zero), '\0', 8);
 		     
-		    //se crea el enlace con el puerto
-		    if( bind(socket_file_udp , (struct sockaddr*)&si_me, sizeof(si_me) ) == -1)
-		    {
-		        perror("bind failed");
-		        exit(EXIT_FAILURE);
-		    }
-
 		    socklen_t slen = sizeof(si_me);
 		    char buffer_udp[TAM];
-			int  recv_len;//,leidos;
-			FILE *f;
-
-			while(udp.flag)
-			{
-
-			    f = fopen(udp.file,"wb");
-				
-				if (f==NULL)
-			    {
-			       perror("No se puede abrir fichero.dat");
-			       exit(EXIT_FAILURE);
-			    }
-				memset(buffer_udp, 0, TAM);
-				if ((recv_len = recvfrom(socket_file_udp, (char *)buf2, TAM, MSG_WAITALL, (struct sockaddr *) &si_me, &slen)) == -1)
-	            {
-	            	perror("recvfrom()");
-	            	exit(EXIT_FAILURE);
-	            }
-				
-	            //float npack = udp.file/1024;
-	            //printf("%s\n",udp.file );
-				/*leidos = sizeof(buf2) / sizeof(char);
-				
-				if ((recv_len = recvfrom(socket_file_udp, buffer2, 1024000, 0, (struct sockaddr *) &si_me, &slen)) == -1)
-	            {
-	            	perror("recvfrom()");
-	            	exit(1);
-	            }*/
-	            fwrite (buffer2, 1, TAM, f);
-	            udp.flag = 0;
-				 fclose(f);
+			n = write( sockfd, "isAlive", TAM);
+			if ( n < 0 ) {
+				perror( "reading to socket" );
+				exit(EXIT_FAILURE);
 			}
+			memset( buffAuxiliar, '\0', TAM );
+			n = read( sockfd, buffAuxiliar, TAM);
+			if ( n < 0 ) {
+				perror( "reading to socket" );
+				exit(EXIT_FAILURE);
+			}
+			if(strcmp("start",buffAuxiliar)){
+				printf("No se pudo comenzar con la descarga \n");
+				fclose(f);
+				exit(EXIT_FAILURE);
+			}
+			printf("Se comenzo con la descarga \n");
+				
+			/** Mientras no se reciba la cadena "finish" por parte del servidor, se guardaran
+				en el archivo todas las lineas provenientes del mismo  */
+			int contador = 0;
+			while(udp.flag)
+			{   
+				memset(buffer_udp, 0, TAM);
+				printf("%s",buffer_udp);
+				
+				/** Esto se envía solo para mantener sincronizados el servidor 
+				con el cliente  */
+				n = sendto(socket_file_udp,(void *)"cla",TAM,0,(struct sockaddr *)&si_me,slen);
+	            if ( n < 0 ) {
+					perror( "writing to socket UDP" );
+					exit(EXIT_FAILURE);
+				}
 
-			close(socket_file_udp);		
-	}
-	}
+				n = recvfrom(socket_file_udp,(void *)buffer_udp,TAM,0,(struct sockaddr *)&si_me,&slen);
+				if ( n < 0 ) {
+					perror( "reading to socket UDP" );
+					exit(EXIT_FAILURE);
+				}
+				contador++;
+				/** Error en el servidor por perror  */
+				/*if (!strcmp (buffer_udp,"error")) { 
+					printf("Hubo un error en el servidor, intentelo nuevamente\n");
+				}*/
 
+				
+				if (!strcmp ("finish", buffer_udp)) {
+					udp.flag = 0;
+					printf("llegaron: %u paquetes\n",contador-1);
+				}
+				else{
+					fwrite(buffer_udp, 1, TAM, f);
+					/*if((rec = fwrite(buffer_udp, 1, TAM, f))== TAM){
+						printf("Error en la escritura del archivo \n");
+						exit(EXIT_FAILURE);
+					}*/
+				}
+				//fclose(f);
+			}
+			fclose(f);
+			char cwd[TAM];
+			if (getcwd (cwd, sizeof (cwd)) != NULL) 
+				printf ("Archivo descargado en %s\n\n", cwd);
+			close(socket_file_udp);		 
+			exit(EXIT_SUCCESS);
+		}
+   }
 }
 /*Se analiza la informacion sobre la conexion y se guarda en la estructura data*/
 void set_data(char* s ){
